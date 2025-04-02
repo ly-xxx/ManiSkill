@@ -159,7 +159,7 @@ class PickCubeEnv(BaseEnv):
         # 简化这里的判断，因为我们只支持xarm6_gripper
         qvel_without_gripper = qvel_without_gripper[..., :-6]
         static_reward = 1 - torch.tanh(
-            5 * torch.linalg.norm(qvel_without_gripper, axis=1)
+            5 * torch.linalg.norm(qvel, axis=1)
         )
         reward += static_reward * info["is_obj_placed"]
 
