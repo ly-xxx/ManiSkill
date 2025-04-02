@@ -5,7 +5,7 @@ import sapien
 import torch
 
 import mani_skill.envs.utils.randomization as randomization
-from mani_skill.agents.robots import Fetch, Panda, XArm6Robotiq
+from mani_skill.agents.robots import XArm6Gripper
 from mani_skill.envs.sapien_env import BaseEnv
 from mani_skill.sensors.camera import CameraConfig
 from mani_skill.utils import sapien_utils
@@ -15,7 +15,8 @@ from mani_skill.utils.scene_builder.table import TableSceneBuilder
 from mani_skill.utils.structs.pose import Pose
 
 
-@register_env("PickCube-v1", max_episode_steps=50)
+# @register_env("PickCube-v1", max_episode_steps=50)
+@register_env("XPickCube-v1", max_episode_steps=50, override=True)
 class PickCubeEnv(BaseEnv):
     """
     **Task Description:**
@@ -32,16 +33,29 @@ class PickCubeEnv(BaseEnv):
     """
 
     _sample_video_link = "https://github.com/haosulab/ManiSkill/raw/main/figures/environment_demos/PickCube-v1_rt.mp4"
-    SUPPORTED_ROBOTS = [
-        "panda",
-        "fetch",
-        "xarm6_robotiq",
-    ]
-    agent: Union[Panda, Fetch, XArm6Robotiq]
+    SUPPORTED_ROBOTS = ["xarm6_gripper"]
+    
+    agent: Union[XArm6Gripper]
+    robot_uids: "xarm6_gripper"
+
     cube_half_size = 0.02
     goal_thresh = 0.025
 
-    def __init__(self, *args, robot_uids="panda", robot_init_qpos_noise=0.02, **kwargs):
+    def __init__(self, *args, robot_uids="xarm6_gripper", robot_init_qpos_noise=0.02, **kwargs):
+        # 强制使用xarm6_gripper，拒绝其他机器人
+        # Check if robot_uids is a tuple and extract the first element if it's a single-element tuple
+        if isinstance(robot_uids, tuple) and len(robot_uids) == 1:
+            robot_uids = robot_uids[0]
+            
+        if robot_uids != "xarm6_gripper":
+            import sys
+            env_id = kwargs.get('env_id', 'PickCube-v1')
+            error_msg = f"Error: {env_id} only supports xarm6_gripper, but got {robot_uids}. Forcing to use xarm6_gripper instead."
+            print(f"\033[91m{error_msg}\033[0m", file=sys.stderr)
+            # 将用户指定的机器人替换为xarm6_gripper
+            robot_uids = "xarm6_gripper"
+            
+        print(f"Using robot: {robot_uids}")
         self.robot_init_qpos_noise = robot_init_qpos_noise
         super().__init__(*args, robot_uids=robot_uids, **kwargs)
 
@@ -142,10 +156,8 @@ class PickCubeEnv(BaseEnv):
         reward += place_reward * is_grasped
 
         qvel_without_gripper = self.agent.robot.get_qvel()
-        if self.robot_uids == "xarm6_robotiq":
-            qvel_without_gripper = qvel_without_gripper[..., :-6]
-        elif self.robot_uids == "panda":
-            qvel_without_gripper = qvel_without_gripper[..., :-2]
+        # 简化这里的判断，因为我们只支持xarm6_gripper
+        qvel_without_gripper = qvel_without_gripper[..., :-6]
         static_reward = 1 - torch.tanh(
             5 * torch.linalg.norm(qvel_without_gripper, axis=1)
         )

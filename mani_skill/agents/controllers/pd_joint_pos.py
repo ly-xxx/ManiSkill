@@ -30,6 +30,9 @@ class PDJointPosController(BaseController):
     def _initialize_action_space(self):
         joint_limits = self._get_joint_limits()
         low, high = joint_limits[:, 0], joint_limits[:, 1]
+        # 确保数组类型正确
+        low = np.asarray(low, dtype=np.float32)
+        high = np.asarray(high, dtype=np.float32)
         self.single_action_space = spaces.Box(low, high, dtype=np.float32)
 
     def set_drive_property(self):
