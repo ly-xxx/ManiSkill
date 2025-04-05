@@ -160,6 +160,7 @@ class PickCubeEnv(BaseEnv):
         qvel_without_gripper = qvel_without_gripper[..., :-6]
         static_reward = 1 - torch.tanh(
             5 * torch.linalg.norm(qvel, axis=1)
+            5 * torch.linalg.norm(qvel, axis=1)
         )
         reward += static_reward * info["is_obj_placed"]
 
