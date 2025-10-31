@@ -77,12 +77,12 @@ class XArm6InspireHandRight(BaseAgent):
                     0,
                     0,
                     0,
-                    -0.16734816,
-                    -0.16734803,
-                    -0.16734798,
-                    -0.167348,
-                    -0.08147363,
-                    -0.07234851,
+                    -0.03,  # thumb_CMC_yaw: well below upper limit (0.0) with noise
+                    -0.16734816,  # index_MCP
+                    -0.16734803,  # middle_MCP
+                    -0.16734798,  # ring_MCP
+                    -0.167348,     # pinky_MCP
+                    -0.03,  # thumb_CMC_pitch: well below upper limit (0.0) with noise
                 ]
             ],
             pose=sapien.Pose(p=[0, 0, 0.4], q=[0, 0, 0, 1]),
@@ -335,19 +335,26 @@ class XArm6InspireHandRight(BaseAgent):
         fingers_joint_delta_pos.damping = [2e3, 2e3, 2e3, 2e3, 2e3, 2e3]  # Higher damping for delta control
 
         # Combined controller for full robot control (arm + wrist + fingers)
+        # Joint names in the correct order matching qpos indices
+        controlled_joint_names = [
+            "joint1", "joint2", "joint3", "joint4", "joint5", "joint6",  # arm (6) -> qpos 0-5
+            "right_hand_wrist_pitch_joint", "right_hand_wrist_yaw_joint",  # wrist (2) -> qpos 6-7
+            "right_hand_thumb_CMC_yaw_joint",  # thumb yaw (1) -> qpos 8
+            "right_hand_index_MCP_joint", "right_hand_middle_MCP_joint",  # index & middle (2) -> qpos 9-10
+            "right_hand_ring_MCP_joint", "right_hand_pinky_MCP_joint",  # ring & pinky (2) -> qpos 11-12
+            "right_hand_thumb_CMC_pitch_joint"  # thumb pitch (1) -> qpos 13
+        ]  # Total: 14 joints
+
         combined_joint_pos = PDJointPosControllerConfig(
-            joint_names=self.arm_joint_names + ["right_hand_wrist_pitch_joint", "right_hand_wrist_yaw_joint"] +
-                        ["right_hand_thumb_CMC_yaw_joint", "right_hand_thumb_CMC_pitch_joint",
-                         "right_hand_index_MCP_joint", "right_hand_middle_MCP_joint",
-                         "right_hand_ring_MCP_joint", "right_hand_pinky_MCP_joint"],
-            lower=-0.02,  # Much smaller delta range for stability
-            upper=0.02,
+            joint_names=controlled_joint_names,
+            lower=None,  # Use joint limits
+            upper=None,
             stiffness=self.arm_stiffness,
             damping=self.arm_damping + [2e3, 2e3] + [5e3, 5e3, 5e3, 5e3, 5e3, 5e3],  # Much higher damping for fingers
             friction=self.arm_friction + [0.1, 0.1] + [0.1, 0.1, 0.1, 0.1, 0.1, 0.1],  # arm(6) + wrist(2) + fingers(6)
             force_limit=self.arm_force_limit,
-            use_delta=True,  # Enable delta control so zero action means stay in place
-            normalize_action=True,  # Normalize actions to [-1, 1] range
+            use_delta=False,  # Use absolute position control
+            normalize_action=False,  # Don't normalize actions
         )
 
         controller_configs = dict(
